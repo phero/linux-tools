@@ -1,0 +1,187 @@
+#!/usr/bin/python
+
+"""
+    Show diff by Google Chrome.
+"""
+
+import argparse
+import difflib
+import subprocess
+import sys
+import tempfile
+import traceback
+
+STYLE = u'''
+    body {
+      background-color: #fff;
+      color: #333;
+      font-size: 12px;
+      line-height: 1.618em;
+    }
+    a {
+      color: #4183c4;
+      text-decoration: none;
+    }
+    a:hover {
+      text-decoration: underline;
+    }
+    a:visited {
+      color: #4183c4;
+    }
+    table {
+      border: 1px solid #808080;
+      border-collapse: collapse;
+      border-radius: 3px;
+      border-spacing: 0;
+      font-family: Consolas, "Liberation Mono", Menlo, Courier, monospace;
+      margin: 1em;
+    }
+    tr {
+      border-color: inherit;
+    }
+    td {
+      padding-left: 1em;
+      padding-right: 1em;
+    }
+    td[nowrap=nowrap] {
+      min-width: 300px;
+    }
+    .diff_header {
+      color: rgba(0, 0, 0, 0.6);
+    }
+    .diff_next {
+    }
+    td[nowrap="nowrap"] {
+      padding-left: 10px;
+    }
+    .diff_add {
+      background-color: #dfd;
+    }
+    .diff_add.highlight {
+      background-color: #afa;
+    }
+    .diff_chg {
+      background-color: #ddf;
+    }
+    .diff_chg.highlight {
+      background-color: #aaf;
+    }
+    .diff_sub {
+      background-color: #fdd;
+    }
+    .diff_sub.highlight {
+      background-color: #faa;
+    }
+'''.splitlines()
+
+JS = u'''
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.4/jquery.min.js"></script>
+<script>
+  $(document).ready(function() {
+    var xs = $('.diff_add');
+    for (var i = 0; i < xs.length; i++) {
+      xs.eq(i).parent('td').addClass('diff_add');
+      xs.eq(i).parent('td').prev('td').addClass('diff_add');
+      xs.eq(i).addClass('highlight');
+    }
+
+    xs = $('.diff_chg');
+    for (var i = 0; i < xs.length; i++) {
+      xs.eq(i).parent('td').addClass('diff_chg');
+      xs.eq(i).parent('td').prev('td').addClass('diff_chg');
+      xs.eq(i).addClass('highlight');
+    }
+
+    xs = $('.diff_sub');
+    for (var i = 0; i < xs.length; i++) {
+      xs.eq(i).parent('td').addClass('diff_sub');
+      xs.eq(i).parent('td').prev('td').addClass('diff_sub');
+      xs.eq(i).addClass('highlight');
+    }
+  });
+</script>
+'''.splitlines()
+
+
+def decode(fname):
+    try:
+        src = open(fname).read()
+        for enc in ('utf-8', 'Shift_JIS', 'euc-jp'):
+            try:
+                src = src.decode(enc).splitlines()
+            except UnicodeDecodeError:
+                continue
+            else:
+                return src
+    except Exception:
+        print >> sys.stderr, traceback.format_exc()
+        return []
+
+
+def diff(src, dst):
+    h = difflib.HtmlDiff()
+    result = [x for x in h.make_file(src, dst).splitlines() if x]
+    i = 0
+
+    # customize doctype
+    while i < len(result):
+        if result[i].strip() == u'<html>':
+            result[:i] = [u'<!DOCTYPE html>']
+            break
+        i += 1
+
+    # customize style
+    start_index = None
+    while i < len(result):
+        if result[i].strip() == '<style type="text/css">':
+            start_index = i
+        elif result[i].strip() == '</style>':
+            assert start_index is not None
+            result[start_index + 1:i] = STYLE
+            break
+        i += 1
+
+    # customize JavaScript
+    result.extend(JS)
+
+    result = u'\n'.join(result)
+    result = result.encode('utf-8')
+    result = result.replace('ISO-8859-1', 'UTF-8')
+    return result
+
+
+def main(args):
+    src1 = decode(args.file1)
+    src2 = decode(args.file2)
+    tmpname1 = '+'.join(args.file1.split('/'))
+    tmpname2 = '+'.join(args.file2.split('/'))
+
+    output = diff(src1, src2)
+
+    fname = args.out or tempfile.mktemp('__<%s>-<%s>.html' % (tmpname1, tmpname2))
+    open(fname, 'wb').write(output + '\n')
+
+    for browser in ('google-chrome', 'chromium-browser'):
+        try:
+            o, e = subprocess.Popen(
+                [browser, fname],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE).communicate()
+            if e:
+                continue
+        except OSError:
+            continue
+        else:
+            break
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='Script for searching command history.')
+    parser.add_argument('file1', type=str)
+    parser.add_argument('file2', type=str)
+    parser.add_argument(
+        '-o', '--out',
+        dest='out',
+        type=str, required=False,
+        help='File name for saving diff result.')
+    args = parser.parse_args()
+    main(args)
