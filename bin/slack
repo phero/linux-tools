@@ -1,0 +1,52 @@
+#!/usr/bin/python
+
+"""
+    Send message to Slack channel.
+"""
+
+import argparse
+import os
+
+import slackweb
+
+
+def main(args):
+    url = args.webhook_url or os.environ.get('SLACK_WEBHOOK_URL')
+    channel = args.channel or os.environ.get('SLACK_CHANNEL')
+    username = args.username or os.environ.get('SLACK_USERNAME')
+
+    if any(x is None for x in (url, channel, username)):
+        raise ValueError('Some parameter has not set. Please see help.')
+
+    slack = slackweb.Slack(url)
+    slack.notify(
+        text=args.message.decode('utf-8'),
+        channel=channel,
+        username=username,
+    )
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='Script for sending a message to Slack.')
+    parser.add_argument(
+        'message',
+        type=str,
+        help='Message.')
+    parser.add_argument(
+        '-w', '--webhook-url',
+        dest='webhook_url',
+        help='Incoming Webhook URL. You can use SLACK_WEBHOOK_URL env.')
+    parser.add_argument(
+        '-c', '--channel',
+        dest='channel',
+        help='Slack channel name. You can use SLACK_CHANNEL env.')
+    parser.add_argument(
+        '-u', '--username',
+        dest='username',
+        help='Slack username name. You can use SLACK_USERNAME env.')
+
+    args = parser.parse_args()
+    if not args.message:
+        parser.print_help()
+    else:
+        main(args)
