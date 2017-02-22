@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 
 """
     Find command from command history.
@@ -18,23 +18,23 @@ def parse_line(line):
         Function for abstracting datetime and command from one line.
         This should return (<datetime object>, <command string>)
     """
-    dts, cmd = line.split(u';', 1)
-    dt = datetime.datetime.fromtimestamp(int(dts.split(u':')[1].strip()))
+    dts, cmd = line.split(';', 1)
+    dt = datetime.datetime.fromtimestamp(int(dts.split(':')[1].strip()))
     return (dt, cmd)
 
 
 def main(args):
-    keywords = [x.decode('utf-8', 'ignore') for x in args.keywords]
+    keywords = args.keywords[::]
     if args.ignorecase:
         keywords = [x.lower() for x in keywords]
 
-    src = open(HISTORY_FILE).read().decode('utf-8', 'ignore').splitlines()
+    src = open(HISTORY_FILE, 'rb').read().decode('utf-8', 'ignore').splitlines()
 
     # Merge multiple-line command to one line.
     i = 0
     while i < len(src):
-        if src[i].endswith(u'\\'):
-            src[i] = u'\n                           '.join([src[i].rstrip(u'\\'), src[i + 1]])
+        if src[i].endswith('\\'):
+            src[i] = '\n                           '.join([src[i].rstrip('\\'), src[i + 1]])
             src[i + 1:i + 2] = []
         else:
             i += 1
@@ -66,14 +66,14 @@ def main(args):
         if not found:
             continue
 
-        print u'{:%Y-%m-%d %H:%M:%S} [{}]:'.format(
+        print('{:%Y-%m-%d %H:%M:%S} [{}]:'.format(
             dt,
-            [u'Mon', u'Tue', u'Wed', u'Thu', u'Fri', u'Sat', u'Sun'][dt.weekday()],
-        ),
+            ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][dt.weekday()],
+        ), end=' ')
         idx_list = merge(idx_list)
         for s, e in reversed(idx_list):
-            cmd = cmd[:s] + u'\033[94m' + cmd[s:e] + u'\033[0m' + cmd[e:]
-        print cmd
+            cmd = cmd[:s] + '\033[94m' + cmd[s:e] + '\033[0m' + cmd[e:]
+        print(cmd)
 
 
 def merge(idx_list):
@@ -102,11 +102,11 @@ def merge(idx_list):
 
 def find_simply(s, cmd):
     """
-        >>> find_simply(u'bra', u'abracatabra')
+        >>> find_simply('bra', 'abracatabra')
         [(1, 4), (8, 11)]
-        >>> find_simply(u'BRA', u'abracatabra')
+        >>> find_simply('BRA', 'abracatabra')
         []
-        >>> find_simply(u'', u'abracatabra')
+        >>> find_simply('', 'abracatabra')
         []
     """
     if not s:
@@ -125,11 +125,11 @@ def find_simply(s, cmd):
 
 def find_regex(s, cmd):
     """
-        >>> find_regex(u'a.+r', u'abracatabra')
+        >>> find_regex('a.+r', 'abracatabra')
         [(0, 10)]
-        >>> find_regex(u'a.+?r', u'abracatabra')
+        >>> find_regex('a.+?r', 'abracatabra')
         [(0, 3), (3, 10)]
-        >>> find_regex(u'', u'abracatabra')
+        >>> find_regex('', 'abracatabra')
         []
     """
     if not s:
@@ -142,11 +142,11 @@ def find_regex(s, cmd):
 
 def find_substring(s, cmd):
     """
-        >>> find_substring(u'abc', u'abracatabra')
+        >>> find_substring('abc', 'abracatabra')
         [(0, 1), (1, 2), (4, 5)]
-        >>> find_substring(u'arab', u'abracatabra')
+        >>> find_substring('arab', 'abracatabra')
         [(0, 1), (2, 3), (3, 4), (8, 9)]
-        >>> find_substring(u'', u'abracatabra')
+        >>> find_substring('', 'abracatabra')
         []
     """
     if not s:

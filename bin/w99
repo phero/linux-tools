@@ -1,5 +1,4 @@
-#!/usr/bin/python
-# -*- coding: utf-8 -*-
+#!/usr/bin/python3
 
 """
     全角文字の幅を2、半角文字の幅を1とした時に
@@ -23,7 +22,7 @@ IGNORE = (
 
 
 def smart_unicode(s):
-    if not isinstance(s, unicode):
+    if isinstance(s, bytes):
         for encoding in ENCODING_TO_TRY:
             try:
                 s = s.decode(encoding)
@@ -32,9 +31,9 @@ def smart_unicode(s):
             else:
                 break
         else:
-            print >> sys.stderr, 'Cannot handle this encode.'
+            print('Cannot handle this encode.', file=sys.stderr)
             return None
-    return s
+    return s.rstrip('\r\n')
 
 
 def unicode_width(us):
@@ -54,7 +53,7 @@ def unicode_width(us):
 
 
 def check_one_file(filename, extensions):
-    if not any(filename.endswith(''.join(['.', ext])) for ext in extensions):
+    if extensions and not any(filename.endswith(''.join(['.', ext])) for ext in extensions):
         return
 
     output_filename = False
@@ -66,21 +65,24 @@ def check_one_file(filename, extensions):
         return
     else:
         for line_number, line in enumerate(f, start=1):
-            line = smart_unicode(line.rstrip('\n'))
+            line = smart_unicode(line)
             width = unicode_width(line)
             if LIMIT_WIDTH < width:
                 if not output_filename:
-                    print filename
+                    print(filename)
                     output_filename = True
-                print u'  L.{:05d} width={:03d}: {}'.format(
+                print('  L.{:05d} width={:03d}: {}'.format(
                     line_number, width, line[:LIMIT_WIDTH],
-                ).encode('utf-8')
+                ))
     if output_filename:
-        print ''
+        print('')
 
 
 def main(args):
-    extensions = args.extensions.split(',')
+    if args.extensions:
+        extensions = args.extensions.split(',')
+    else:
+        extensions = None
     for filename_or_dirname in args.filename_or_dirname:
         if os.path.isfile(filename_or_dirname):
             check_one_file(filename_or_dirname, extensions)
@@ -93,6 +95,7 @@ def main(args):
                     if any(ignore in fullpath for ignore in IGNORE):
                         continue
                     check_one_file(fullpath, extensions)
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='99文字を越える行を検出する')

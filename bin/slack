@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 
 """
     Send message to Slack channel.
@@ -20,7 +20,7 @@ def main(args):
 
     slack = slackweb.Slack(url)
     slack.notify(
-        text=args.message.decode('utf-8'),
+        text=args.message,
         channel=channel,
         username=username,
     )
