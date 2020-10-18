@@ -1,0 +1,80 @@
+#!python
+
+"""
+    Script for getting samples from AtCoder.
+"""
+
+import argparse
+import getpass
+import os
+import re
+
+import requests
+
+
+def main(args):
+    contest = args.contest
+    problem = args.problem
+    if not contest or not problem:
+        d = os.getcwd()
+        basename = os.path.basename(d)
+        while basename:
+            if len(basename) == 1 and basename.isalpha():
+                if not problem:
+                    problem = basename.upper()
+                if not contest:
+                    contest = os.path.basename(os.path.dirname(d))
+                break
+            d = os.path.dirname(d)
+            basename = os.path.basename(d)
+    assert contest and problem, 'contest={}, problem={} are invalid'.format(contest, problem)
+
+    session = requests.session()
+
+    # get CSRF token
+    html = session.get('https://atcoder.jp/login').text
+    r = re.search(r'''\<input.+name\s*=\s*['"]?csrf_token['"]?\s*value\s*=\s*['"]?(?P<token>[^'"\s]+)['"]?.*\>''', html)  # NOQA
+    assert r is not None
+    csrf_token = r.group('token')
+
+    # login
+    session.post('https://atcoder.jp/login', data={
+        'username': os.getenv('ATCODER_USERNAME') or input('\nusername?: '),
+        'password': os.getenv('ATCODER_PASSWORD') or getpass.getpass('password?: '),
+        'csrf_token': csrf_token,
+    })
+
+    # get problem page
+    url = 'https://atcoder.jp/contests/{c}/tasks/{c}_{p}'.format(
+        c=contest.lower(),
+        p=problem.lower(),
+    )
+    lines = session.get(url).text.splitlines()
+    i = 0
+    data = []
+    while i < len(lines):
+        r = re.search(r'''入力例\s*(?P<num>\d+)''', lines[i])
+        if r:
+            num = r.group('num')
+            data.append(re.search(r'''\<\s*pre\s*\>(?P<x>.+)$''', lines[i]).group('x'))
+            i += 1
+            while i < len(lines):
+                if re.search(r'''</pre>''', lines[i]):
+                    break
+                data.append(lines[i])
+                i += 1
+            if data:
+                with open('sample{}'.format(num), 'w') as f:
+                    for x in data:
+                        print(x, file=f)
+                data = []
+        else:
+            i += 1
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='Script for getting AtCoder sample input.')
+    parser.add_argument('-c', '--contest', dest='contest', type=str, required=False)
+    parser.add_argument('-p', '--problem', dest='problem', type=str, required=False)
+    args = parser.parse_args()
+    main(args)
