@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!python
 
 """
     Send message to Slack channel.
