@@ -1,0 +1,57 @@
+#!python
+
+"""
+    Script for Jobcan Touch.
+
+    requires:
+        pip install requests
+"""
+
+import getpass
+import os
+import re
+
+import requests
+
+
+def main():
+    session = requests.session()
+
+    # get token for login
+    html = session.get('https://id.jobcan.jp/users/sign_in').text
+    r = re.search(r'''\<input.+name\s*=\s*['"]?authenticity_token['"]?\s*value\s*=\s*['"]?(?P<token>[^'"\s]+)['"]?.*\>''', html)  # NOQA
+    assert r is not None
+    authenticity_token = r.group('token')
+
+    # login
+    html = session.post(
+        'https://id.jobcan.jp/users/sign_in',
+        {
+            'user[email]': os.getenv('JOBCAN_EMAIL') or input('email? :'),
+            'user[password]': os.getenv('JOBCAN_PASSWORD') or getpass.getpass('password? :'),
+            'authenticity_token': authenticity_token,
+        },
+    ).text
+
+    # goto button page
+    html = session.get('https://ssl.jobcan.jp/jbcoauth/login').text
+    r = re.search(r'''\<input.+name\s*=\s*['"]?token['"]?\s*value\s*=\s*['"]?(?P<token>[^'"\s]+)['"]?.*\>''', html)  # NOQA
+    assert r is not None
+    token = r.group('token')
+
+    # push button
+    session.post(
+        'https://ssl.jobcan.jp/employee/index/adit',
+        {
+            'is_yakin': 0,
+            'adit_item': 'DEF',
+            'notice': '',
+            'token': token,
+            'adit_group_id': 1,
+            '_': '',
+        },
+    )
+
+
+if __name__ == '__main__':
+    main()
