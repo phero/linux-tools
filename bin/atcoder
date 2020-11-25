@@ -44,32 +44,39 @@ def main(args):
         'csrf_token': csrf_token,
     })
 
-    # get problem page
-    url = 'https://atcoder.jp/contests/{c}/tasks/{c}_{p}'.format(
+    # get tasks page
+    url = 'https://atcoder.jp/contests/{c}/tasks'.format(
         c=contest.lower(),
-        p=problem.lower(),
     )
-    lines = session.get(url).text.splitlines()
-    i = 0
-    data = []
-    while i < len(lines):
-        r = re.search(r'''入力例\s*(?P<num>\d+)''', lines[i])
-        if r:
-            num = r.group('num')
-            data.append(re.search(r'''\<\s*pre\s*\>(?P<x>.+)$''', lines[i]).group('x'))
-            i += 1
-            while i < len(lines):
-                if re.search(r'''</pre>''', lines[i]):
-                    break
-                data.append(lines[i])
-                i += 1
-            if data:
-                with open('sample{}'.format(num), 'w') as f:
-                    for x in data:
-                        print(x, file=f)
-                data = []
-        else:
-            i += 1
+    text = session.get(url).text
+    path = re.compile(r'<a href="(/contests/{c}/tasks/{c}_.+?)">{p}</a>'.format(
+        c=contest.lower(),
+        p=problem.upper(),
+    ))
+    r = path.search(text)
+    if r is None:
+        return
+    url = 'https://atcoder.jp{}'.format(r.group(1))
+
+    # get problem page
+    text = session.get(url).text
+    starts = [r.start() for r in re.finditer(r'入力例', text)]
+    sample_id = 1
+    for i in range(len(starts)):
+        s = starts[i]
+        e = starts[i + 1] if i + 1 < len(starts) else len(text)
+        t = text[s:e]
+        r = re.search(r'<pre[^>]*>(.+?)</pre>', t, re.DOTALL)
+        if r is None:
+            continue
+
+        print('Getting sample{} ... '.format(sample_id), end='')
+        sample = r.group(1).strip()
+        with open('sample{}'.format(sample_id), 'w') as f:
+            print(sample, file=f)
+        print('done')
+
+        sample_id += 1
 
 
 if __name__ == '__main__':
