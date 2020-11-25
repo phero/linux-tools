@@ -14,7 +14,7 @@ import re
 import requests
 
 
-def main():
+def jobcantouch():
     session = requests.session()
 
     # get token for login
@@ -40,7 +40,7 @@ def main():
     token = r.group('token')
 
     # push button
-    session.post(
+    print(session.post(
         'https://ssl.jobcan.jp/employee/index/adit',
         {
             'is_yakin': 0,
@@ -50,8 +50,8 @@ def main():
             'adit_group_id': 1,
             '_': '',
         },
-    )
+    ).json())
 
 
 if __name__ == '__main__':
-    main()
+    jobcantouch()
