@@ -8,6 +8,7 @@ import argparse
 import getpass
 import os
 import re
+import sys
 
 import requests
 
@@ -49,12 +50,13 @@ def main(args):
         c=contest.lower(),
     )
     text = session.get(url).text
-    path = re.compile(r'<a href="(/contests/{c}/tasks/{c}_.+?)">{p}</a>'.format(
+    path = re.compile(r'<a href="(/contests/{c}/tasks/.+?)">{p}</a>'.format(
         c=contest.lower(),
         p=problem.upper(),
     ))
     r = path.search(text)
     if r is None:
+        print('Error: cannot find "{}" in {}'.format(path.pattern, url), file=sys.stderr)
         return
     url = 'https://atcoder.jp{}'.format(r.group(1))
 
