@@ -2,18 +2,14 @@
 
 """
     Find command from command history.
-
-    Required: xsel
 """
 
 import argparse
 import datetime
 import doctest
-import itertools
 import os
 import re
 import string
-import subprocess
 
 HISTORY_FILE = os.path.join(os.path.expanduser('~'), '.zsh_history')
 SHORTCUT_CHARS = string.digits + string.ascii_uppercase
@@ -54,10 +50,6 @@ def main(args):
         judge = find_simply
 
     # Print lines which matched with all keywords.
-    # (with shortcuts if not used --no-shortcut option.)
-    shortcuts = {}
-    shortcut_length = 1
-    shortcut_candidates = itertools.product(SHORTCUT_CHARS, repeat=shortcut_length)
     for line in src:
         dt, cmd = parse_line(line)
 
@@ -81,33 +73,10 @@ def main(args):
             ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][dt.weekday()],
         ), end=' ')
 
-        if not args.no_shortcut:
-            try:
-                shortcut = ''.join(next(shortcut_candidates))
-            except StopIteration:
-                shortcut_length += 1
-                shortcut_candidates = itertools.product(SHORTCUT_CHARS, repeat=shortcut_length)
-                shortcut = ''.join(next(shortcut_candidates))
-            assert shortcut not in shortcuts
-            shortcuts[shortcut] = cmd
-
-            print('\033[92m<{}>\033[0m'.format(shortcut), ':', end=' ')
-
         idx_list = merge(idx_list)
         for s, e in reversed(idx_list):
             cmd = cmd[:s] + '\033[94m' + cmd[s:e] + '\033[0m' + cmd[e:]
         print(cmd)
-
-    if shortcuts:
-        choice = input('Which command to be copied?: ').upper()
-        if choice in shortcuts:
-            subprocess.Popen(
-                ['xsel', '-ib'],
-                stdin=subprocess.PIPE,
-            ).communicate(input=bytes(shortcuts[choice], encoding='utf-8'))
-            print('Copied: {}'.format(shortcuts[choice]))
-        else:
-            print('No command found.')
 
 
 def merge(idx_list):
@@ -215,10 +184,6 @@ if __name__ == '__main__':
         '-l', '--lcs',
         dest='lcs', action='store_true',
         help='Treat keywords as subsequence.\nexample: "ace" is inclucded by "abcde"')
-    parser.add_argument(
-        '-n', '--no-shortcut',
-        dest='no_shortcut', action='store_true',
-        help='If set, will not show shortcuts for commands.')
 
     args = parser.parse_args()
     if not args.keywords:
