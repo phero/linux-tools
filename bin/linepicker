@@ -1,0 +1,80 @@
+#!python
+
+"""Pickup lines from grep/mypy output."""
+
+import argparse
+import sys
+
+
+def main(args):
+
+    ranges = []
+    for s in args.ranges:
+        start, end = s.split(":")
+        start = int(start) if start else None
+        end = int(end) if end else None
+        ranges.append((start, end))
+
+    dotted = False
+
+    def output(line):
+        nonlocal dotted
+        if dotted:
+            print()
+        dotted = False
+        print(line)
+
+    def dot():
+        nonlocal dotted
+        print(".", end="")
+        dotted = True
+
+    for line in sys.stdin:
+        line = line.rstrip()
+
+        if args.ranges is None:
+            output(line)
+            continue
+
+        if ":" not in line:
+            output(line)
+            continue
+
+        try:
+            line_number = int(line.split(":")[1])
+        except ValueError:
+            output(line)
+            continue
+
+        for start, end in ranges:
+            match (start, end):
+                case (None, None):
+                    break
+                case (None, _):
+                    if line_number < end:
+                        break
+                case (_, None):
+                    if start <= line_number:
+                        break
+                case (_, _):
+                    if start <= line_number < end:
+                        break
+        else:
+            dot()
+            continue
+        output(line)
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(
+        description='Script for picking up some lines.',
+    )
+    parser.add_argument(
+        'ranges',
+        nargs='+',
+        type=str,
+        help='Line number ranges. e.g. "100:200", "100:", ":200"',
+    )
+
+    args = parser.parse_args()
+    main(args)
